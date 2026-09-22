@@ -1,0 +1,14 @@
+{
+  "name": "@in-transit/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@in-transit/shared": "workspace:*"
+  }
+}
