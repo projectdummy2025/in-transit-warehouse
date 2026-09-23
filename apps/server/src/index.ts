@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { inboundRouter } from "./routes/inbound-route";
 
 // Server constants definition
 const defaultPort = Number(process.env.PORT) || 8125;
@@ -26,6 +27,9 @@ export function createServer() {
   serverApp.get("/", (requestContext) => {
     return requestContext.json({ message: "In-Transit WMS API" }, statusSuccess);
   });
+
+  // Route: inbound management endpoints
+  serverApp.route("/api/inbound", inboundRouter);
 
   // Middleware: custom 404 not found handler
   serverApp.notFound((requestContext) => {
