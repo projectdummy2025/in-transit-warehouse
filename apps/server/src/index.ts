@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { inboundRouter } from "./routes/inbound-route";
 import { mutationRouter } from "./routes/mutation-route";
+import { outboundRouter } from "./routes/outbound-route";
 
 // Server constants definition
 const defaultPort = Number(process.env.PORT) || 8125;
@@ -34,6 +35,9 @@ export function createServer() {
 
   // Route: mutation management endpoints
   serverApp.route("/api/mutations", mutationRouter);
+
+  // Route: outbound management endpoints
+  serverApp.route("/api/outbound", outboundRouter);
 
   // Middleware: custom 404 not found handler
   serverApp.notFound((requestContext) => {
