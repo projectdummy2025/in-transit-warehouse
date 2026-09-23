@@ -82,17 +82,16 @@ export function parseSSEPayload(rawString: string, eventName?: string): Warehous
   }
 }
 
-// Custom hook to consume real-time Server-Sent Events with fallback mock stream
+// Custom hook to consume real-time Server-Sent Events from backend
 export function useSSE({
   streamUrl = "/api/events/activity-stream",
-  enableMockStream = true,
+  enableMockStream = false,
 }: UseSSEOptions = {}) {
   const [eventList, setEventList] = useState<WarehouseActivityEvent[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
     let eventSourceInstance: EventSource | null = null;
-    let mockIntervalId: ReturnType<typeof setInterval> | null = null;
 
     try {
       eventSourceInstance = new EventSource(streamUrl);
@@ -141,64 +140,14 @@ export function useSSE({
         if (eventSourceInstance) {
           eventSourceInstance.close();
         }
-
-        if (enableMockStream && !mockIntervalId) {
-          startMockStream();
-        }
       };
     } catch {
       setIsConnected(false);
-      if (enableMockStream) {
-        startMockStream();
-      }
-    }
-
-    function startMockStream() {
-      setIsConnected(true);
-      console.log(`(${new Date().toISOString()}) Initialized mock SSE stream fallback`);
-
-      const MOCK_PRESETS: Omit<WarehouseActivityEvent, "eventId" | "timestampISO">[] = [
-        {
-          eventType: "INBOUND_RECEIVED",
-          lpnCode: "LPN-20260923-0089",
-          locationCode: "INBOUND-BAY-01",
-          messageText: "Received 20 Master Units of SKU-FOOD-01 at Dock Door 01",
-        },
-        {
-          eventType: "LOCATION_MUTATED",
-          lpnCode: "LPN-20260923-0042",
-          locationCode: "STAGING-A2",
-          messageText: "Pallet transferred from INBOUND-BAY-01 to STAGING-A2",
-        },
-        {
-          eventType: "STAGING_ALERT",
-          lpnCode: "LPN-20260923-0012",
-          locationCode: "STAGING-BAY-07",
-          messageText: "Bay 07 threshold reached high density capacity (92%)",
-        },
-      ];
-
-      let presetIndex = 0;
-      mockIntervalId = setInterval(() => {
-        const template = MOCK_PRESETS[presetIndex % MOCK_PRESETS.length];
-        presetIndex++;
-
-        const newEvent: WarehouseActivityEvent = {
-          ...template,
-          eventId: `EVT-${Date.now()}`,
-          timestampISO: new Date().toISOString(),
-        };
-
-        setEventList((prevList) => [newEvent, ...prevList.slice(0, 49)]);
-      }, 5000);
     }
 
     return () => {
       if (eventSourceInstance) {
         eventSourceInstance.close();
-      }
-      if (mockIntervalId) {
-        clearInterval(mockIntervalId);
       }
     };
   }, [streamUrl, enableMockStream]);

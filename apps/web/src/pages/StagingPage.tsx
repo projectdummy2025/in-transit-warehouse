@@ -4,69 +4,16 @@ import { StagingGrid } from "./staging/StagingGrid";
 import { StagingShow } from "./staging/StagingShow";
 import { LiveActivityLog } from "@/components/LiveActivityLog";
 
-// Initial physical warehouse buffer bay configuration
+// Initial physical warehouse buffer bay configuration with clean zero-state
 const INITIAL_BAYS: StagingBay[] = [
-  {
-    bayCode: "BAY-01",
-    maxCapacityUnits: 50,
-    currentUnits: 35,
-    pallets: [
-      { lpnCode: "LPN-20260923-0001", skuCode: "SKU-FOOD-01", quantityNumber: 20, receivedAt: new Date(Date.now() - 3600000).toISOString() },
-      { lpnCode: "LPN-20260923-0002", skuCode: "SKU-FOOD-02", quantityNumber: 15, receivedAt: new Date(Date.now() - 1800000).toISOString() },
-    ],
-  },
-  {
-    bayCode: "BAY-02",
-    maxCapacityUnits: 50,
-    currentUnits: 45,
-    pallets: [
-      { lpnCode: "LPN-20260923-0003", skuCode: "SKU-ELEC-01", quantityNumber: 25, receivedAt: new Date(Date.now() - 7200000).toISOString() },
-      { lpnCode: "LPN-20260923-0004", skuCode: "SKU-ELEC-02", quantityNumber: 20, receivedAt: new Date(Date.now() - 5400000).toISOString() },
-    ],
-  },
-  {
-    bayCode: "BAY-03",
-    maxCapacityUnits: 50,
-    currentUnits: 10,
-    pallets: [
-      { lpnCode: "LPN-20260923-0005", skuCode: "SKU-HOME-01", quantityNumber: 10, receivedAt: new Date(Date.now() - 900000).toISOString() },
-    ],
-  },
-  {
-    bayCode: "BAY-04",
-    maxCapacityUnits: 50,
-    currentUnits: 0,
-    pallets: [],
-  },
-  {
-    bayCode: "BAY-05",
-    maxCapacityUnits: 50,
-    currentUnits: 20,
-    pallets: [
-      { lpnCode: "LPN-20260923-0006", skuCode: "SKU-BEV-01", quantityNumber: 20, receivedAt: new Date(Date.now() - 1200000).toISOString() },
-    ],
-  },
-  {
-    bayCode: "BAY-06",
-    maxCapacityUnits: 50,
-    currentUnits: 0,
-    pallets: [],
-  },
-  {
-    bayCode: "BAY-07",
-    maxCapacityUnits: 50,
-    currentUnits: 48,
-    pallets: [
-      { lpnCode: "LPN-20260923-0007", skuCode: "SKU-APPL-01", quantityNumber: 30, receivedAt: new Date(Date.now() - 8400000).toISOString() },
-      { lpnCode: "LPN-20260923-0008", skuCode: "SKU-APPL-02", quantityNumber: 18, receivedAt: new Date(Date.now() - 6000000).toISOString() },
-    ],
-  },
-  {
-    bayCode: "BAY-08",
-    maxCapacityUnits: 50,
-    currentUnits: 0,
-    pallets: [],
-  },
+  { bayCode: "BAY-01", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
+  { bayCode: "BAY-02", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
+  { bayCode: "BAY-03", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
+  { bayCode: "BAY-04", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
+  { bayCode: "BAY-05", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
+  { bayCode: "BAY-06", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
+  { bayCode: "BAY-07", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
+  { bayCode: "BAY-08", maxCapacityUnits: 50, currentUnits: 0, pallets: [] },
 ];
 
 type ViewMode = "grid" | "show";
@@ -87,7 +34,7 @@ export function StagingPage() {
   const [bayList, setBayList] = useState<StagingBay[]>(INITIAL_BAYS);
   const [selectedBay, setSelectedBay] = useState<StagingBay | null>(null);
 
-  // Fetch staging inventory from server API and merge with bay matrix
+  // Fetch staging inventory from server API and map directly to warehouse bays
   useEffect(() => {
     async function loadStagingInventory() {
       try {
@@ -95,7 +42,7 @@ export function StagingPage() {
         if (!response.ok) return;
 
         const serverData = (await response.json()) as ApiStagingItem[];
-        if (!Array.isArray(serverData) || serverData.length === 0) return;
+        if (!Array.isArray(serverData)) return;
 
         // Group server pallets by location code
         const bayMap = new Map<string, StagingPallet[]>();
@@ -112,37 +59,34 @@ export function StagingPage() {
           bayMap.set(location, existingList);
         });
 
-        // Merge grouped pallets into existing bay list or create new bays
-        setBayList((prevBays) => {
-          const updatedBays = prevBays.map((bay) => {
-            const serverPallets = bayMap.get(bay.bayCode);
-            if (serverPallets) {
-              const totalUnits = serverPallets.reduce((sum, p) => sum + p.quantityNumber, 0);
-              bayMap.delete(bay.bayCode);
-              return {
-                ...bay,
-                currentUnits: totalUnits,
-                pallets: serverPallets,
-              };
-            }
-            return bay;
-          });
-
-          // Add any additional bays returned by server
-          bayMap.forEach((pallets, bayCode) => {
-            const totalUnits = pallets.reduce((sum, p) => sum + p.quantityNumber, 0);
-            updatedBays.push({
-              bayCode,
-              maxCapacityUnits: 50,
-              currentUnits: totalUnits,
-              pallets,
-            });
-          });
-
-          return updatedBays;
+        // Populate base bays with actual database records
+        const baseBayCodes = ["BAY-01", "BAY-02", "BAY-03", "BAY-04", "BAY-05", "BAY-06", "BAY-07", "BAY-08"];
+        const updatedBays: StagingBay[] = baseBayCodes.map((code) => {
+          const pallets = bayMap.get(code) || [];
+          bayMap.delete(code);
+          const totalUnits = pallets.reduce((sum, p) => sum + p.quantityNumber, 0);
+          return {
+            bayCode: code,
+            maxCapacityUnits: 50,
+            currentUnits: totalUnits,
+            pallets,
+          };
         });
-      } catch {
-        // Retain fallback initial bays on network failure
+
+        // Append any dynamically created staging bays from database
+        bayMap.forEach((pallets, bayCode) => {
+          const totalUnits = pallets.reduce((sum, p) => sum + p.quantityNumber, 0);
+          updatedBays.push({
+            bayCode,
+            maxCapacityUnits: 50,
+            currentUnits: totalUnits,
+            pallets,
+          });
+        });
+
+        setBayList(updatedBays);
+      } catch (error) {
+        console.error("Failed to load staging inventory", error);
       }
     }
 
