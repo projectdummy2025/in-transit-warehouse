@@ -1,7 +1,10 @@
 import { Hono } from "hono";
+import { eventsRouter } from "./routes/events-route";
 import { inboundRouter } from "./routes/inbound-route";
 import { mutationRouter } from "./routes/mutation-route";
 import { outboundRouter } from "./routes/outbound-route";
+import { stagingRouter } from "./routes/staging-route";
+import { agingWorker } from "./workers/aging-worker";
 
 // Server constants definition
 const defaultPort = Number(process.env.PORT) || 8125;
@@ -39,6 +42,12 @@ export function createServer() {
   // Route: outbound management endpoints
   serverApp.route("/api/outbound", outboundRouter);
 
+  // Route: events and real-time SSE activity stream
+  serverApp.route("/api/events", eventsRouter);
+
+  // Route: staging inventory management endpoints
+  serverApp.route("/api/inventory", stagingRouter);
+
   // Middleware: custom 404 not found handler
   serverApp.notFound((requestContext) => {
     const currentTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -59,11 +68,16 @@ export function createServer() {
 // Default application instance
 const serverApp = createServer();
 
+// Start background aging alert worker in production/runtime mode
+if (process.env.NODE_ENV !== "test") {
+  agingWorker.start();
+}
+
 // Server bootstrap log
 const launchTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
 console.log(`(${launchTimestamp}) Server initialized on port ${defaultPort}`);
 
-export { serverApp };
+export { serverApp, agingWorker };
 
 export default {
   port: defaultPort,

@@ -1,11 +1,13 @@
 import { and, asc, eq, lt, ne } from "drizzle-orm";
 import { databaseInstance } from "../db/client";
 import { locationsTable, lpnsTable, mutationLogsTable } from "../db/schema";
+import { activityEventEmitter } from "./event-emitter";
 
 interface DispatchLpnInput {
   lpnCode: string;
   outboundLocationId?: number;
   notes?: string;
+  operatorId?: string;
 }
 
 // Find oldest undispatched LPN for given SKU code or ID to enforce FIFO
@@ -108,6 +110,13 @@ export async function processOutboundDispatch(dispatchInput: DispatchLpnInput) {
   // Log successful dispatch event
   const logTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
   console.log(`(${logTimestamp}) Outbound LPN dispatched: ${dispatchedLpn.lpnCode}`);
+
+  // Broadcast real-time SSE dispatch event
+  activityEventEmitter.broadcastLpnDispatched({
+    lpn_code: dispatchedLpn.lpnCode,
+    operator_id: dispatchInput.operatorId || "SYSTEM",
+    timestamp: logTimestamp,
+  });
 
   return dispatchedLpn;
 }

@@ -1,12 +1,14 @@
 import { eq } from "drizzle-orm";
 import { databaseInstance } from "../db/client";
 import { locationsTable, lpnsTable, mutationLogsTable } from "../db/schema";
+import { activityEventEmitter } from "./event-emitter";
 import { verifyLocationCapacity } from "./location-service";
 
 interface MoveLpnInput {
   lpnCode: string;
   destinationLocationId: number;
   notes?: string;
+  operatorId?: string;
 }
 
 // Service function to process atomic internal mutation move
@@ -44,6 +46,12 @@ export async function processMoveMutation(moveInput: MoveLpnInput) {
   // Validate destination location capacity
   await verifyLocationCapacity(moveInput.destinationLocationId, foundLpn.quantity);
 
+  // Retrieve source location code for audit and event emission
+  const [sourceLocation] = await databaseInstance
+    .select()
+    .from(locationsTable)
+    .where(eq(locationsTable.id, foundLpn.currentLocationId));
+
   const sourceLocationId = foundLpn.currentLocationId;
   const currentTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
 
@@ -75,6 +83,15 @@ export async function processMoveMutation(moveInput: MoveLpnInput) {
   // Log successful mutation event
   const logTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
   console.log(`(${logTimestamp}) LPN internal move processed: ${updatedLpn.lpnCode}`);
+
+  // Broadcast real-time SSE mutation event
+  activityEventEmitter.broadcastMutationCreated({
+    lpn_code: updatedLpn.lpnCode,
+    from_location: sourceLocation?.locationCode || String(sourceLocationId),
+    to_location: destinationLocation.locationCode,
+    operator_id: moveInput.operatorId || "SYSTEM",
+    timestamp: logTimestamp,
+  });
 
   return updatedLpn;
 }
