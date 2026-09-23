@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { WorkbenchLayout } from "@/components/WorkbenchLayout";
 import { InboundPage } from "@/pages/InboundPage";
 import { MutationPage } from "@/pages/MutationPage";
+import { StagingPage } from "@/pages/StagingPage";
 
 // Main application root with global keyboard shortcut handler
 export default function App() {
@@ -40,28 +41,7 @@ export default function App() {
     >
       {activeTab === "inbound" && <InboundPage />}
       {activeTab === "mutation" && <MutationPage />}
-
-      {activeTab === "staging" && (
-        <div className="flex-1 flex flex-col space-y-4">
-          <div>
-            <h2 className="text-base font-bold uppercase tracking-wider text-zinc-100">
-              Staging Overview
-            </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Buffer bay capacity telemetry and aging alerts
-            </p>
-          </div>
-
-          <div className="flex-1 w-full bg-[#18191d] border border-zinc-800/90 rounded-xl p-8 flex flex-col items-center justify-center text-center space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              Staging Visualizer Ready
-            </p>
-            <p className="text-xs text-zinc-500 max-w-lg">
-              Module container ready for staging grid visualizer and live SSE telemetry.
-            </p>
-          </div>
-        </div>
-      )}
+      {activeTab === "staging" && <StagingPage />}
     </WorkbenchLayout>
   );
 }
