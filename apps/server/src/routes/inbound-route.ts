@@ -1,8 +1,34 @@
+import { desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { databaseInstance } from "../db/client";
+import { locationsTable, lpnsTable, skusTable } from "../db/schema";
 import { processInboundReceive } from "../services/inbound-service";
 
 // Inbound API router definition
 const inboundRouter = new Hono();
+
+// Route: Get all received inbound inventory records
+inboundRouter.get("/", async (requestContext) => {
+  try {
+    const inboundRecords = await databaseInstance
+      .select({
+        lpnCode: lpnsTable.lpnCode,
+        skuCode: skusTable.skuCode,
+        quantityNumber: lpnsTable.quantity,
+        locationCode: locationsTable.locationCode,
+        receivedAt: lpnsTable.receivedAt,
+      })
+      .from(lpnsTable)
+      .innerJoin(skusTable, eq(lpnsTable.skuId, skusTable.id))
+      .innerJoin(locationsTable, eq(lpnsTable.currentLocationId, locationsTable.id))
+      .orderBy(desc(lpnsTable.id));
+
+    return requestContext.json(inboundRecords, 200);
+  } catch (caughtError: unknown) {
+    const errorMessage = caughtError instanceof Error ? caughtError.message : "Internal server error";
+    return requestContext.json({ message: errorMessage }, 500);
+  }
+});
 
 // Route: Receive inbound inventory and generate initial LPN
 inboundRouter.post("/receive", async (requestContext) => {

@@ -1,38 +1,35 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MutationRecord } from "./mutation/mutationTypes";
 import { MutationIndex } from "./mutation/MutationIndex";
 import { MutationForm } from "./mutation/MutationForm";
 import { MutationShow } from "./mutation/MutationShow";
-
-// Initial dataset for pallet mutation audit trail
-const INITIAL_MUTATIONS: MutationRecord[] = [
-  {
-    mutationId: "MUT-20260923-0001",
-    lpnCode: "LPN-20260923-0001",
-    sourceLocation: "INBOUND-BAY-01",
-    destinationLocation: "STAGING-A1",
-    operatorName: "DC-OPERATOR-01",
-    mutatedAt: new Date(Date.now() - 3600000).toISOString(),
-    syncStatus: "confirmed",
-  },
-  {
-    mutationId: "MUT-20260923-0002",
-    lpnCode: "LPN-20260923-0002",
-    sourceLocation: "INBOUND-BAY-01",
-    destinationLocation: "STAGING-B2",
-    operatorName: "DC-OPERATOR-01",
-    mutatedAt: new Date(Date.now() - 1800000).toISOString(),
-    syncStatus: "confirmed",
-  },
-];
 
 type ViewMode = "index" | "form" | "show";
 
 // Location mutation page orchestrator with optimistic UI state handling and real API dispatch
 export function MutationPage() {
   const [activeView, setActiveView] = useState<ViewMode>("index");
-  const [mutationList, setMutationList] = useState<MutationRecord[]>(INITIAL_MUTATIONS);
+  const [mutationList, setMutationList] = useState<MutationRecord[]>([]);
   const [selectedMutation, setSelectedMutation] = useState<MutationRecord | null>(null);
+
+  // Fetch recorded mutation logs from backend API
+  useEffect(() => {
+    async function loadMutations() {
+      try {
+        const response = await fetch("/api/mutations");
+        if (!response.ok) return;
+
+        const data = (await response.json()) as MutationRecord[];
+        if (Array.isArray(data)) {
+          setMutationList(data);
+        }
+      } catch (error) {
+        console.error("Failed to load mutation logs", error);
+      }
+    }
+
+    loadMutations();
+  }, []);
 
   // Optimistic location transfer executor calling real backend API
   const handleOptimisticTransfer = async (lpnCode: string, destinationLocation: string) => {
@@ -50,11 +47,10 @@ export function MutationPage() {
       syncStatus: "optimistic",
     };
 
-    // 2. Update UI state immediately (zero lag)
+    // 2. Update UI state immediately
     setMutationList((previousList) => [optimisticRecord, ...previousList]);
     setActiveView("index");
 
-    // Logging per guidelines: (date-timestamp) functionality message
     console.log(`(${timestampNow}) Pallet location mutation initiated: ${lpnCode} -> ${destinationLocation}`);
 
     // 3. Background real network dispatch to backend Hono API
@@ -84,11 +80,10 @@ export function MutationPage() {
     } catch (catchError: unknown) {
       const errorMessage = catchError instanceof Error ? catchError.message : "Mutation move failed";
       console.error(`(${new Date().toISOString()}) Pallet location mutation error: ${errorMessage}`);
-      // Mark as confirmed in mock mode if backend is disconnected
       setMutationList((previousList) =>
         previousList.map((itemRecord) =>
           itemRecord.mutationId === newMutationId
-            ? { ...itemRecord, syncStatus: "confirmed" }
+            ? { ...itemRecord, syncStatus: "failed" }
             : itemRecord
         )
       );
