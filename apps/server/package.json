@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@in-transit/shared": "workspace:*"
+    "@in-transit/shared": "workspace:*",
+    "hono": "4.13.8"
   }
 }
