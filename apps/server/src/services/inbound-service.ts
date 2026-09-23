@@ -1,26 +1,75 @@
 import { eq } from "drizzle-orm";
 import { databaseInstance } from "../db/client";
 import { locationsTable, lpnsTable, mutationLogsTable, skusTable } from "../db/schema";
-
 import { createLpnCode } from "../utils/lpn-generator";
 import { verifyLocationCapacity } from "./location-service";
 
-interface InboundReceiveInput {
-  skuId: number;
+export interface InboundReceiveInput {
+  skuId?: number;
+  skuCode?: string;
   quantity: number;
   locationId?: number;
+  locationCode?: string;
   lpnCode?: string;
+  operatorId?: string;
 }
 
-// Service function to process inbound inventory reception
+// Service function to process inbound inventory reception supporting ID and Code identifiers
 export async function processInboundReceive(receiveInput: InboundReceiveInput) {
   // Validate quantity is positive
   if (receiveInput.quantity <= 0) {
     throw new Error("Quantity must be greater than zero");
   }
 
-  // Validate target location exists and is of INBOUND type
+  // Resolve target SKU by code or id
+  let targetSkuId = receiveInput.skuId;
+  if (!targetSkuId && receiveInput.skuCode) {
+    const [foundSku] = await databaseInstance
+      .select()
+      .from(skusTable)
+      .where(eq(skusTable.skuCode, receiveInput.skuCode));
+
+    if (foundSku) {
+      targetSkuId = foundSku.id;
+    } else {
+      // Create new SKU if not exists for fast in-transit intake
+      const [newSku] = await databaseInstance
+        .insert(skusTable)
+        .values({
+          skuCode: receiveInput.skuCode,
+          name: `Item ${receiveInput.skuCode}`,
+        })
+        .returning();
+      targetSkuId = newSku.id;
+    }
+  }
+
+  if (!targetSkuId) {
+    throw new Error("Target SKU identifier or code is required");
+  }
+
+  // Validate target SKU exists
+  const [targetSku] = await databaseInstance
+    .select()
+    .from(skusTable)
+    .where(eq(skusTable.id, targetSkuId));
+
+  if (!targetSku) {
+    throw new Error("Target SKU not found");
+  }
+
+  // Resolve target location by code or id
   let targetLocationId = receiveInput.locationId;
+  if (!targetLocationId && receiveInput.locationCode) {
+    const [foundLoc] = await databaseInstance
+      .select()
+      .from(locationsTable)
+      .where(eq(locationsTable.locationCode, receiveInput.locationCode));
+
+    if (foundLoc) {
+      targetLocationId = foundLoc.id;
+    }
+  }
 
   if (targetLocationId) {
     const [foundLocation] = await databaseInstance
@@ -42,24 +91,23 @@ export async function processInboundReceive(receiveInput: InboundReceiveInput) {
       .where(eq(locationsTable.locationType, "INBOUND"));
 
     if (!defaultInboundLocation) {
-      throw new Error("No available INBOUND location found");
+      // Auto-create default INBOUND location if none exists
+      const [createdInboundLocation] = await databaseInstance
+        .insert(locationsTable)
+        .values({
+          locationCode: "IN-DOCK-01",
+          locationType: "INBOUND",
+          capacity: 100,
+        })
+        .returning();
+      targetLocationId = createdInboundLocation.id;
+    } else {
+      targetLocationId = defaultInboundLocation.id;
     }
-
-    targetLocationId = defaultInboundLocation.id;
   }
 
   // Validate location capacity limits
   await verifyLocationCapacity(targetLocationId, receiveInput.quantity);
-
-  // Validate target SKU exists
-  const [foundSku] = await databaseInstance
-    .select()
-    .from(skusTable)
-    .where(eq(skusTable.id, receiveInput.skuId));
-
-  if (!foundSku) {
-    throw new Error("Target SKU not found");
-  }
 
   // Generate unique LPN code if not provided
   const generatedLpnCode = receiveInput.lpnCode || createLpnCode();
@@ -70,7 +118,7 @@ export async function processInboundReceive(receiveInput: InboundReceiveInput) {
       .insert(lpnsTable)
       .values({
         lpnCode: generatedLpnCode,
-        skuId: receiveInput.skuId,
+        skuId: targetSkuId,
         quantity: receiveInput.quantity,
         currentLocationId: targetLocationId,
         status: "RECEIVED",
@@ -82,7 +130,7 @@ export async function processInboundReceive(receiveInput: InboundReceiveInput) {
       sourceLocationId: targetLocationId,
       destinationLocationId: targetLocationId,
       actionType: "RECEIVE",
-      notes: "Initial inbound reception",
+      notes: `Inbound reception by ${receiveInput.operatorId || "SYSTEM"}`,
     });
 
     return newLpn;

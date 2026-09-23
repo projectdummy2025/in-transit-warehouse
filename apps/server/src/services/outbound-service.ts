@@ -6,6 +6,7 @@ import { activityEventEmitter } from "./event-emitter";
 interface DispatchLpnInput {
   lpnCode: string;
   outboundLocationId?: number;
+  outboundLocationCode?: string;
   notes?: string;
   operatorId?: string;
 }
@@ -68,7 +69,7 @@ export async function processOutboundDispatch(dispatchInput: DispatchLpnInput) {
     );
   }
 
-  // Validate outbound destination location if provided
+  // Resolve outbound location by ID or Code
   let destinationLocationId = targetLpn.currentLocationId;
   if (dispatchInput.outboundLocationId) {
     const [foundLocation] = await databaseInstance
@@ -85,6 +86,25 @@ export async function processOutboundDispatch(dispatchInput: DispatchLpnInput) {
     }
 
     destinationLocationId = dispatchInput.outboundLocationId;
+  } else if (dispatchInput.outboundLocationCode) {
+    const [foundLocByCode] = await databaseInstance
+      .select()
+      .from(locationsTable)
+      .where(eq(locationsTable.locationCode, dispatchInput.outboundLocationCode));
+
+    if (foundLocByCode) {
+      destinationLocationId = foundLocByCode.id;
+    } else {
+      const [newOutboundLoc] = await databaseInstance
+        .insert(locationsTable)
+        .values({
+          locationCode: dispatchInput.outboundLocationCode,
+          locationType: "OUTBOUND",
+          capacity: 100,
+        })
+        .returning();
+      destinationLocationId = newOutboundLoc.id;
+    }
   }
 
   const currentTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);

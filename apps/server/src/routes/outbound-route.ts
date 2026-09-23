@@ -8,7 +8,11 @@ const outboundRouter = new Hono();
 outboundRouter.post("/dispatch", async (requestContext) => {
   try {
     const requestBody = await requestContext.req.json();
-    const { lpnCode, outboundLocationId, notes } = requestBody;
+    const lpnCode = requestBody.lpn_code || requestBody.lpnCode;
+    const outboundLocationId = requestBody.outboundLocationId;
+    const outboundLocationCode = requestBody.outbound_location_code || requestBody.outboundLocationCode;
+    const operatorId = requestBody.operator_id || requestBody.operatorId;
+    const notes = requestBody.notes;
 
     // Validate required body fields presence
     if (!lpnCode || typeof lpnCode !== "string") {
@@ -18,7 +22,9 @@ outboundRouter.post("/dispatch", async (requestContext) => {
     // Process dispatch operation through service
     const dispatchedLpn = await processOutboundDispatch({
       lpnCode,
-      outboundLocationId,
+      outboundLocationId: typeof outboundLocationId === "number" ? outboundLocationId : undefined,
+      outboundLocationCode: typeof outboundLocationCode === "string" ? outboundLocationCode : undefined,
+      operatorId,
       notes,
     });
 
@@ -26,6 +32,9 @@ outboundRouter.post("/dispatch", async (requestContext) => {
       {
         message: "LPN dispatched successfully",
         data: dispatchedLpn,
+        lpn_code: dispatchedLpn.lpnCode,
+        lpnCode: dispatchedLpn.lpnCode,
+        status: dispatchedLpn.status,
       },
       200
     );

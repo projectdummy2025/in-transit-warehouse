@@ -8,11 +8,17 @@ const inboundRouter = new Hono();
 inboundRouter.post("/receive", async (requestContext) => {
   try {
     const requestBody = await requestContext.req.json();
-    const { skuId, quantity, locationId, lpnCode } = requestBody;
+    const skuCode = requestBody.sku_code || requestBody.skuCode;
+    const skuId = requestBody.skuId;
+    const quantity = requestBody.quantity ?? requestBody.quantityNumber;
+    const locationCode = requestBody.location_code || requestBody.locationCode;
+    const locationId = requestBody.locationId;
+    const operatorId = requestBody.operator_id || requestBody.operatorId;
+    const lpnCode = requestBody.lpn_code || requestBody.lpnCode;
 
-    // Validate required body fields presence
-    if (!skuId || typeof skuId !== "number") {
-      return requestContext.json({ message: "Invalid or missing skuId" }, 400);
+    // Validate SKU identifier presence
+    if (!skuId && !skuCode) {
+      return requestContext.json({ message: "Invalid or missing skuId or sku_code" }, 400);
     }
 
     if (!quantity || typeof quantity !== "number" || quantity <= 0) {
@@ -21,9 +27,12 @@ inboundRouter.post("/receive", async (requestContext) => {
 
     // Process inbound reception through service
     const createdLpn = await processInboundReceive({
-      skuId,
+      skuId: typeof skuId === "number" ? skuId : undefined,
+      skuCode: typeof skuCode === "string" ? skuCode : undefined,
       quantity,
-      locationId,
+      locationId: typeof locationId === "number" ? locationId : undefined,
+      locationCode: typeof locationCode === "string" ? locationCode : undefined,
+      operatorId,
       lpnCode,
     });
 
@@ -31,6 +40,12 @@ inboundRouter.post("/receive", async (requestContext) => {
       {
         message: "Inbound inventory received successfully",
         data: createdLpn,
+        lpnCode: createdLpn.lpnCode,
+        lpn_code: createdLpn.lpnCode,
+        skuCode: skuCode || `SKU-${createdLpn.skuId}`,
+        quantityNumber: createdLpn.quantity,
+        locationCode: locationCode || "INBOUND",
+        receivedAt: createdLpn.receivedAt,
       },
       201
     );
