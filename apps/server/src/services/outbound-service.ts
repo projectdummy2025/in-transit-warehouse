@@ -1,4 +1,4 @@
-import { and, asc, eq, lt, ne } from "drizzle-orm";
+import { and, asc, eq, lt, ne, or } from "drizzle-orm";
 import { databaseInstance } from "../db/client";
 import { locationsTable, lpnsTable, mutationLogsTable } from "../db/schema";
 import { activityEventEmitter } from "./event-emitter";
@@ -44,7 +44,7 @@ export async function processOutboundDispatch(dispatchInput: DispatchLpnInput) {
     throw new Error("LPN is already DISPATCHED");
   }
 
-  // FIFO check: verify no older undispatched LPN exists for the same SKU
+  // FIFO check: verify no older undispatched LPN exists for the same SKU with secondary ID tie-breaker
   const [olderLpn] = await databaseInstance
     .select()
     .from(lpnsTable)
@@ -53,10 +53,13 @@ export async function processOutboundDispatch(dispatchInput: DispatchLpnInput) {
         eq(lpnsTable.skuId, targetLpn.skuId),
         ne(lpnsTable.status, "DISPATCHED"),
         ne(lpnsTable.id, targetLpn.id),
-        lt(lpnsTable.receivedAt, targetLpn.receivedAt)
+        or(
+          lt(lpnsTable.receivedAt, targetLpn.receivedAt),
+          and(eq(lpnsTable.receivedAt, targetLpn.receivedAt), lt(lpnsTable.id, targetLpn.id))
+        )
       )
     )
-    .orderBy(asc(lpnsTable.receivedAt))
+    .orderBy(asc(lpnsTable.receivedAt), asc(lpnsTable.id))
     .limit(1);
 
   if (olderLpn) {
@@ -75,6 +78,10 @@ export async function processOutboundDispatch(dispatchInput: DispatchLpnInput) {
 
     if (!foundLocation) {
       throw new Error("Outbound destination location not found");
+    }
+
+    if (foundLocation.locationType !== "OUTBOUND") {
+      throw new Error("Destination location must be of type OUTBOUND");
     }
 
     destinationLocationId = dispatchInput.outboundLocationId;

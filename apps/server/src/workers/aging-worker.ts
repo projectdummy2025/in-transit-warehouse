@@ -20,31 +20,42 @@ export class AgingWorker {
     console.log(`(${currentTimestamp}) Aging alert worker started`);
 
     this.timerHandle = setInterval(async () => {
-      await this.executeScan();
+      try {
+        await this.executeScan();
+      } catch (caughtError: unknown) {
+        const errorMessage = caughtError instanceof Error ? caughtError.message : "Unknown error";
+        console.error(`(${new Date().toISOString().replace("T", " ").slice(0, 19)}) Aging scan failed: ${errorMessage}`);
+      }
     }, intervalMilliseconds);
   }
 
   // Execute single scan cycle over database staging inventory
   public async executeScan(): Promise<StagingInventoryItem[]> {
     const scanTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
-    const stagingItems = await fetchStagingInventory();
-    const overdueItems = stagingItems.filter((inventoryItem) => inventoryItem.is_overdue);
+    try {
+      const stagingItems = await fetchStagingInventory();
+      const overdueItems = stagingItems.filter((inventoryItem) => inventoryItem.is_overdue);
 
-    // Broadcast overdue alert for each overdue LPN
-    for (const overdueItem of overdueItems) {
-      activityEventEmitter.broadcastAgingOverdue({
-        lpn_code: overdueItem.lpn_code,
-        location_code: overdueItem.location_code,
-        dwell_time_hours: Number((overdueItem.dwell_time_minutes / 60).toFixed(1)),
-        timestamp: scanTimestamp,
-      });
+      // Broadcast overdue alert for each overdue LPN
+      for (const overdueItem of overdueItems) {
+        activityEventEmitter.broadcastAgingOverdue({
+          lpn_code: overdueItem.lpn_code,
+          location_code: overdueItem.location_code,
+          dwell_time_hours: Number((overdueItem.dwell_time_minutes / 60).toFixed(1)),
+          timestamp: scanTimestamp,
+        });
+      }
+
+      if (overdueItems.length > 0) {
+        console.log(`(${scanTimestamp}) Aging scan detected ${overdueItems.length} overdue LPNs`);
+      }
+
+      return overdueItems;
+    } catch (caughtError: unknown) {
+      const errorMessage = caughtError instanceof Error ? caughtError.message : "Database error";
+      console.error(`(${scanTimestamp}) Aging scan query error: ${errorMessage}`);
+      return [];
     }
-
-    if (overdueItems.length > 0) {
-      console.log(`(${scanTimestamp}) Aging scan detected ${overdueItems.length} overdue LPNs`);
-    }
-
-    return overdueItems;
   }
 
   // Stop background scan timer

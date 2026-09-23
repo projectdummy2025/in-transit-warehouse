@@ -7,9 +7,17 @@ import { locationsTable, lpnsTable, skusTable } from "../db/schema";
 export const overdueThresholdMinutes = 1440;
 const millisecondsPerMinute = 60000;
 
+// Normalize timestamp string into explicit UTC Date
+export function normalizeUtcDate(dateString: string): Date {
+  if (dateString.endsWith("Z") || dateString.includes("+")) {
+    return new Date(dateString);
+  }
+  return new Date(`${dateString.replace(" ", "T")}Z`);
+}
+
 // Calculate dwell time duration in minutes from received timestamp
 export function calculateDwellTime(receivedAtIso: string, currentTime: Date = new Date()): number {
-  const receivedTimestamp = new Date(receivedAtIso).getTime();
+  const receivedTimestamp = normalizeUtcDate(receivedAtIso).getTime();
   const currentTimestamp = currentTime.getTime();
   const elapsedMilliseconds = Math.max(0, currentTimestamp - receivedTimestamp);
   return Math.floor(elapsedMilliseconds / millisecondsPerMinute);
