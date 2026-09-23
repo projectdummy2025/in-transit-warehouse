@@ -10,6 +10,12 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@in-transit/shared": "workspace:*"
+    "@in-transit/shared": "workspace:*",
+    "drizzle-orm": "0.45.3",
+    "hono": "4.13.8"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "drizzle-kit": "0.31.11"
   }
 }
