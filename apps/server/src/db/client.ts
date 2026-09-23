@@ -1,5 +1,7 @@
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { join } from "path";
 
 // Database configuration constants
 const fallbackPath = "warehouse.db";
@@ -7,7 +9,7 @@ const journalModeQuery = "PRAGMA journal_mode = WAL;";
 const foreignKeysQuery = "PRAGMA foreign_keys = ON;";
 
 // Factory function to initialize database connection with required pragmas
-export function createDatabase(databasePath?: string) {
+export function createDatabase(databasePath?: string, autoMigrate = true) {
   const selectedPath = databasePath || process.env.DATABASE_PATH || fallbackPath;
   const sqliteConnection = new Database(selectedPath);
 
@@ -19,6 +21,12 @@ export function createDatabase(databasePath?: string) {
 
   // Initialize Drizzle ORM client wrapper
   const databaseClient = drizzle(sqliteConnection);
+
+  // Auto-apply schema migrations if enabled
+  if (autoMigrate) {
+    const migrationsFolder = join(import.meta.dir, "../../drizzle");
+    migrate(databaseClient, { migrationsFolder });
+  }
 
   // Log successful database initialization
   const formattedTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);

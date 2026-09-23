@@ -5,7 +5,7 @@ import { createDatabase } from "../src/db/client";
 describe("Database Client", () => {
   // Test memory database initialization and foreign keys pragma
   it("should enable foreign keys pragma on initialization", () => {
-    const memoryDatabase = createDatabase(":memory:");
+    const memoryDatabase = createDatabase(":memory:", false);
     const queryResult = memoryDatabase.sqliteConnection
       .query("PRAGMA foreign_keys;")
       .get() as { foreign_keys: number };
@@ -16,7 +16,7 @@ describe("Database Client", () => {
 
   // Test database client instance is created properly
   it("should provide valid drizzle client instance", () => {
-    const memoryDatabase = createDatabase(":memory:");
+    const memoryDatabase = createDatabase(":memory:", false);
 
     expect(memoryDatabase.databaseClient).toBeDefined();
     memoryDatabase.sqliteConnection.close();
