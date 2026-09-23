@@ -1,30 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { Database } from "bun:sqlite";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { createDatabase } from "../src/db/client";
 import { locationsTable, lpnsTable, mutationLogsTable, skusTable } from "../src/db/schema";
-
-// Helper function to apply initial migration to test database
-function applyMigration(sqliteConnection: Database) {
-  const migrationPath = join(__dirname, "../drizzle/0000_dizzy_mephisto.sql");
-  const migrationSql = readFileSync(migrationPath, "utf-8");
-  const sqlStatements = migrationSql.split("--> statement-breakpoint");
-
-  for (const singleStatement of sqlStatements) {
-    const trimmedStatement = singleStatement.trim();
-    if (trimmedStatement.length > 0) {
-      sqliteConnection.run(trimmedStatement);
-    }
-  }
-}
 
 // Test suite for database schema and table constraints
 describe("Database Schema", () => {
   // Test inserting and retrieving master SKU and Location records
   it("should create sku and location records properly", async () => {
-    const memoryDatabase = createDatabase(":memory:");
-    applyMigration(memoryDatabase.sqliteConnection);
+    const memoryDatabase = createDatabase(":memory:", true);
 
     // Insert SKU master record
     await memoryDatabase.databaseClient.insert(skusTable).values({
@@ -52,8 +34,7 @@ describe("Database Schema", () => {
 
   // Test inserting LPN inventory item and mutation log entry
   it("should create lpn and mutation log records with relation constraints", async () => {
-    const memoryDatabase = createDatabase(":memory:");
-    applyMigration(memoryDatabase.sqliteConnection);
+    const memoryDatabase = createDatabase(":memory:", true);
 
     // Seed parent SKU and Location records
     const [insertedSku] = await memoryDatabase.databaseClient
