@@ -8,21 +8,27 @@ const mutationRouter = new Hono();
 mutationRouter.post("/move", async (requestContext) => {
   try {
     const requestBody = await requestContext.req.json();
-    const { lpnCode, destinationLocationId, notes } = requestBody;
+    const lpnCode = requestBody.lpn_code || requestBody.lpnCode;
+    const destinationLocationId = requestBody.destinationLocationId;
+    const destinationLocationCode = requestBody.to_location_code || requestBody.destinationLocation || requestBody.destinationLocationCode;
+    const operatorId = requestBody.operator_id || requestBody.operatorId || requestBody.operatorName;
+    const notes = requestBody.notes;
 
     // Validate required body fields presence
     if (!lpnCode || typeof lpnCode !== "string") {
       return requestContext.json({ message: "Invalid or missing lpnCode" }, 400);
     }
 
-    if (!destinationLocationId || typeof destinationLocationId !== "number") {
-      return requestContext.json({ message: "Invalid or missing destinationLocationId" }, 400);
+    if (!destinationLocationId && !destinationLocationCode) {
+      return requestContext.json({ message: "Invalid or missing destination location" }, 400);
     }
 
     // Process move mutation through service
     const updatedLpn = await processMoveMutation({
       lpnCode,
-      destinationLocationId,
+      destinationLocationId: typeof destinationLocationId === "number" ? destinationLocationId : undefined,
+      destinationLocationCode: typeof destinationLocationCode === "string" ? destinationLocationCode : undefined,
+      operatorId,
       notes,
     });
 
@@ -30,6 +36,9 @@ mutationRouter.post("/move", async (requestContext) => {
       {
         message: "LPN moved successfully",
         data: updatedLpn,
+        lpn_code: updatedLpn.lpnCode,
+        lpnCode: updatedLpn.lpnCode,
+        status: updatedLpn.status,
       },
       200
     );

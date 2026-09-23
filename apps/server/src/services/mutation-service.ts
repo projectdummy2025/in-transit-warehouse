@@ -6,7 +6,8 @@ import { verifyLocationCapacity } from "./location-service";
 
 interface MoveLpnInput {
   lpnCode: string;
-  destinationLocationId: number;
+  destinationLocationId?: number;
+  destinationLocationCode?: string;
   notes?: string;
   operatorId?: string;
 }
@@ -28,23 +29,51 @@ export async function processMoveMutation(moveInput: MoveLpnInput) {
     throw new Error("Cannot move a DISPATCHED LPN");
   }
 
+  // Resolve destination location ID by ID or Code
+  let targetLocationId = moveInput.destinationLocationId;
+  if (!targetLocationId && moveInput.destinationLocationCode) {
+    const [foundLocationByCode] = await databaseInstance
+      .select()
+      .from(locationsTable)
+      .where(eq(locationsTable.locationCode, moveInput.destinationLocationCode));
+
+    if (foundLocationByCode) {
+      targetLocationId = foundLocationByCode.id;
+    } else {
+      // Create TRANSIT staging bay location if code does not exist yet
+      const [newLocation] = await databaseInstance
+        .insert(locationsTable)
+        .values({
+          locationCode: moveInput.destinationLocationCode,
+          locationType: "TRANSIT",
+          capacity: 50,
+        })
+        .returning();
+      targetLocationId = newLocation.id;
+    }
+  }
+
+  if (!targetLocationId) {
+    throw new Error("Destination location identifier or code is required");
+  }
+
   // Validate destination location existence
   const [destinationLocation] = await databaseInstance
     .select()
     .from(locationsTable)
-    .where(eq(locationsTable.id, moveInput.destinationLocationId));
+    .where(eq(locationsTable.id, targetLocationId));
 
   if (!destinationLocation) {
     throw new Error("Destination location not found");
   }
 
   // Prevent moving to the exact same location
-  if (foundLpn.currentLocationId === moveInput.destinationLocationId) {
+  if (foundLpn.currentLocationId === targetLocationId) {
     throw new Error("LPN is already at destination location");
   }
 
   // Validate destination location capacity
-  await verifyLocationCapacity(moveInput.destinationLocationId, foundLpn.quantity);
+  await verifyLocationCapacity(targetLocationId, foundLpn.quantity);
 
   // Retrieve source location code for audit and event emission
   const [sourceLocation] = await databaseInstance
@@ -61,7 +90,7 @@ export async function processMoveMutation(moveInput: MoveLpnInput) {
     const [resultLpn] = await transactionClient
       .update(lpnsTable)
       .set({
-        currentLocationId: moveInput.destinationLocationId,
+        currentLocationId: targetLocationId,
         status: "STAGED",
         updatedAt: currentTimestamp,
       })
@@ -72,9 +101,9 @@ export async function processMoveMutation(moveInput: MoveLpnInput) {
     await transactionClient.insert(mutationLogsTable).values({
       lpnId: foundLpn.id,
       sourceLocationId: sourceLocationId,
-      destinationLocationId: moveInput.destinationLocationId,
+      destinationLocationId: targetLocationId,
       actionType: "MOVE",
-      notes: moveInput.notes || "Internal location transfer",
+      notes: moveInput.notes || `Internal transfer by ${moveInput.operatorId || "SYSTEM"}`,
     });
 
     return resultLpn;
