@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowLeft, Barcode, CheckCircle, AlertCircle } from "lucide-react";
+import { Barcode, CheckCircle, AlertCircle } from "lucide-react";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { InboundItem } from "./inboundTypes";
 
@@ -60,14 +60,8 @@ export function InboundCreate({ onSuccess, onCancel }: CreateProps) {
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onCancel}
-          className="p-2 rounded-lg bg-[#18191d] border border-zinc-800/90 text-zinc-400 hover:text-white transition-colors"
-          title="Back to Index"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+      {/* Top Header with right-aligned single Back action */}
+      <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-100">
             Inbound Receiving Form
@@ -76,6 +70,12 @@ export function InboundCreate({ onSuccess, onCancel }: CreateProps) {
             Scan hardware barcode or input SKU manually to generate licensed pallet unit
           </p>
         </div>
+        <button
+          onClick={onCancel}
+          className="px-4 py-1.5 rounded-lg border border-zinc-800 bg-[#18191d] text-zinc-300 hover:text-white hover:bg-zinc-800 text-xs font-semibold uppercase tracking-wider transition-colors shadow-sm"
+        >
+          Kembali
+        </button>
       </div>
 
       <form
@@ -87,7 +87,7 @@ export function InboundCreate({ onSuccess, onCancel }: CreateProps) {
       >
         <div className="space-y-1.5">
           <label className="text-xs font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-            <Barcode className="w-4 h-4 text-zinc-400" />
+            <Barcode className="w-4 h-4 text-zinc-400" strokeWidth={1.75} />
             <span>SKU Barcode Input</span>
           </label>
           <input
