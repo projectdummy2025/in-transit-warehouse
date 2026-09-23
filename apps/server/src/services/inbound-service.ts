@@ -2,6 +2,9 @@ import { eq } from "drizzle-orm";
 import { databaseInstance } from "../db/client";
 import { locationsTable, lpnsTable, mutationLogsTable, skusTable } from "../db/schema";
 
+import { createLpnCode } from "../utils/lpn-generator";
+import { verifyLocationCapacity } from "./location-service";
+
 interface InboundReceiveInput {
   skuId: number;
   quantity: number;
@@ -45,6 +48,9 @@ export async function processInboundReceive(receiveInput: InboundReceiveInput) {
     targetLocationId = defaultInboundLocation.id;
   }
 
+  // Validate location capacity limits
+  await verifyLocationCapacity(targetLocationId, receiveInput.quantity);
+
   // Validate target SKU exists
   const [foundSku] = await databaseInstance
     .select()
@@ -56,9 +62,7 @@ export async function processInboundReceive(receiveInput: InboundReceiveInput) {
   }
 
   // Generate unique LPN code if not provided
-  const currentDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
-  const generatedLpnCode = receiveInput.lpnCode || `LPN-${currentDate}-${randomSuffix}`;
+  const generatedLpnCode = receiveInput.lpnCode || createLpnCode();
 
   // Execute database atomic transaction for LPN creation and audit log entry
   const createdLpn = await databaseInstance.transaction(async (transactionClient) => {
