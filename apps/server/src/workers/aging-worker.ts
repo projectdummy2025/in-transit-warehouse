@@ -2,7 +2,8 @@ import { StagingInventoryItem } from "@in-transit/shared";
 import { activityEventEmitter } from "../services/event-emitter";
 import { fetchStagingInventory } from "../services/staging-service";
 
-const defaultScanInterval = 300000; // 5 minutes scan interval
+// Default interval from environment variable or fallback to 5 minutes
+const defaultScanInterval = Number(process.env.AGING_SCAN_INTERVAL_MS) || 300000;
 
 // Background worker checking staging area inventory dwell time and emitting alerts
 export class AgingWorker {
