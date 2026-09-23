@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { StagingBay } from "./staging/stagingTypes";
 import { StagingGrid } from "./staging/StagingGrid";
 import { StagingShow } from "./staging/StagingShow";
+import { LiveActivityLog } from "@/components/LiveActivityLog";
 
 // Initial physical warehouse buffer bay configuration
 const INITIAL_BAYS: StagingBay[] = [
@@ -70,22 +71,25 @@ const INITIAL_BAYS: StagingBay[] = [
 
 type ViewMode = "grid" | "show";
 
-// Buffer staging overview page orchestrator
+// Buffer staging overview page orchestrator with live telemetry stream
 export function StagingPage() {
   const [activeView, setActiveView] = useState<ViewMode>("grid");
   const [bayList] = useState<StagingBay[]>(INITIAL_BAYS);
   const [selectedBay, setSelectedBay] = useState<StagingBay | null>(null);
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-6">
       {activeView === "grid" && (
-        <StagingGrid
-          bayList={bayList}
-          onSelectBay={(bay) => {
-            setSelectedBay(bay);
-            setActiveView("show");
-          }}
-        />
+        <>
+          <StagingGrid
+            bayList={bayList}
+            onSelectBay={(bay) => {
+              setSelectedBay(bay);
+              setActiveView("show");
+            }}
+          />
+          <LiveActivityLog maxDisplayCount={5} />
+        </>
       )}
 
       {activeView === "show" && selectedBay && (
