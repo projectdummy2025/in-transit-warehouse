@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { WorkbenchLayout } from "@/components/WorkbenchLayout";
+import { InboundPage } from "@/pages/InboundPage";
 
 // Main application root with global keyboard shortcut handler
 export default function App() {
@@ -36,31 +37,31 @@ export default function App() {
       selectTab={setActiveTab}
       onLogout={handleLogout}
     >
-      <div className="flex-1 flex flex-col space-y-4">
-        {/* Active tab section header */}
-        <div>
-          <h2 className="text-base font-bold uppercase tracking-wider text-zinc-100">
-            {activeTab === "inbound" && "Inbound Receiving"}
-            {activeTab === "mutation" && "Location Mutation"}
-            {activeTab === "staging" && "Staging Overview"}
-          </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            {activeTab === "inbound" && "Dock receiving and LPN label generation"}
-            {activeTab === "mutation" && "Internal pallet movement to staging bays"}
-            {activeTab === "staging" && "Buffer bay capacity telemetry and aging alerts"}
-          </p>
-        </div>
+      {activeTab === "inbound" && <InboundPage />}
 
-        {/* Content frame */}
-        <div className="flex-1 w-full bg-[#18191d] border border-zinc-800/90 rounded-xl p-8 flex flex-col items-center justify-center text-center space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-            Workbench Layout Initialized
-          </p>
-          <p className="text-xs text-zinc-500 max-w-lg">
-            Global keyboard shortcuts [F1, F2, F3] active. Ready for transaction page integration.
-          </p>
+      {activeTab !== "inbound" && (
+        <div className="flex-1 flex flex-col space-y-4">
+          <div>
+            <h2 className="text-base font-bold uppercase tracking-wider text-zinc-100">
+              {activeTab === "mutation" && "Location Mutation"}
+              {activeTab === "staging" && "Staging Overview"}
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              {activeTab === "mutation" && "Internal pallet movement to staging bays"}
+              {activeTab === "staging" && "Buffer bay capacity telemetry and aging alerts"}
+            </p>
+          </div>
+
+          <div className="flex-1 w-full bg-[#18191d] border border-zinc-800/90 rounded-xl p-8 flex flex-col items-center justify-center text-center space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+              Module Initialized
+            </p>
+            <p className="text-xs text-zinc-500 max-w-lg">
+              Module container ready for resource view pattern implementation.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </WorkbenchLayout>
   );
 }
