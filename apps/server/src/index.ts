@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
 // Server constants definition
-const defaultPort = 3000;
+const defaultPort = Number(process.env.PORT) || 8125;
 const statusSuccess = 200;
 const statusNotFound = 404;
 const statusError = 500;
@@ -49,7 +49,7 @@ const serverApp = createServer();
 
 // Server bootstrap log
 const launchTimestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
-console.log(`(${launchTimestamp}) Server initialized`);
+console.log(`(${launchTimestamp}) Server initialized on port ${defaultPort}`);
 
 export { serverApp };
 
