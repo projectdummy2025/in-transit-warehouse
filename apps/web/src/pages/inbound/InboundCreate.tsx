@@ -33,15 +33,39 @@ export function InboundCreate({ onSuccess, onCancel }: CreateProps) {
       const response = await fetch("/api/inbound/receive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skuCode: targetSku, quantityNumber: targetQty }),
+        body: JSON.stringify({
+          sku_code: targetSku,
+          quantity: targetQty,
+          location_code: "IN-DOCK-01",
+          operator_id: "OP-001",
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: `Server error ${response.status}` }));
+        throw new Error((errorData as { message?: string }).message || `Status ${response.status}`);
       }
 
-      const responseData = (await response.json()) as InboundItem;
-      onSuccess(responseData);
+      const responseData = (await response.json()) as {
+        data?: { lpnCode: string; skuId: number; quantity: number; receivedAt: string };
+        lpnCode?: string;
+        skuCode?: string;
+        quantityNumber?: number;
+        locationCode?: string;
+        receivedAt?: string;
+      };
+
+      const createdLpnCode = responseData.lpnCode || responseData.data?.lpnCode || `LPN-${Date.now()}`;
+      const createdItem: InboundItem = {
+        lpnCode: createdLpnCode,
+        skuCode: targetSku,
+        quantityNumber: targetQty,
+        locationCode: responseData.locationCode || "IN-DOCK-01",
+        receivedAt: responseData.receivedAt || responseData.data?.receivedAt || new Date().toISOString(),
+      };
+
+      setFeedbackMessage(`Inbound LPN ${createdLpnCode} created successfully!`);
+      onSuccess(createdItem);
     } catch (catchError) {
       const errorMessage = catchError instanceof Error ? catchError.message : "Inbound receive failed";
       setIsError(true);
