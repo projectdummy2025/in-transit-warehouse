@@ -1,11 +1,11 @@
 import { defineConfig } from "drizzle-kit";
 
-// Drizzle ORM migration configuration
+// Database migration configuration supporting environment variable override
 export default defineConfig({
-  dialect: "sqlite",
   schema: "./src/db/schema.ts",
   out: "./drizzle",
+  dialect: "sqlite",
   dbCredentials: {
-    url: "warehouse.db",
+    url: process.env.DATABASE_PATH || "warehouse.db",
   },
 });

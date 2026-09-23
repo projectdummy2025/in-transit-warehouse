@@ -3,8 +3,8 @@ import { StagingInventoryItem } from "@in-transit/shared";
 import { databaseInstance } from "../db/client";
 import { locationsTable, lpnsTable, skusTable } from "../db/schema";
 
-// Standard overdue dwell time threshold in minutes (24 hours)
-export const overdueThresholdMinutes = 1440;
+// Standard overdue dwell time threshold in minutes (default 24 hours)
+export const overdueThresholdMinutes = Number(process.env.OVERDUE_THRESHOLD_MINUTES) || 1440;
 const millisecondsPerMinute = 60000;
 
 // Normalize timestamp string into explicit UTC Date
