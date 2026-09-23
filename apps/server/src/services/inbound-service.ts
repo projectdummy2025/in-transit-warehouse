@@ -68,6 +68,17 @@ export async function processInboundReceive(receiveInput: InboundReceiveInput) {
 
     if (foundLoc) {
       targetLocationId = foundLoc.id;
+    } else {
+      // Auto-create INBOUND location if code does not exist yet
+      const [newInboundLoc] = await databaseInstance
+        .insert(locationsTable)
+        .values({
+          locationCode: receiveInput.locationCode,
+          locationType: "INBOUND",
+          capacity: 100,
+        })
+        .returning();
+      targetLocationId = newInboundLoc.id;
     }
   }
 

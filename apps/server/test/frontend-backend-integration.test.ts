@@ -39,13 +39,14 @@ describe("Frontend to Backend Integration Contract", () => {
     const inboundRes = await serverApp.request(inboundReq);
     const inboundJson = (await inboundRes.json()) as { lpnCode: string };
 
-    // 2. Move to staging bay
+    // 2. Move to dynamic staging bay
+    const testBay = `BAY-FE-${Date.now()}`;
     const moveReq = new Request("http://localhost/api/mutations/move", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lpn_code: inboundJson.lpnCode,
-        to_location_code: "BAY-02",
+        to_location_code: testBay,
         operator_id: "DC-OPERATOR-01",
       }),
     });
@@ -59,6 +60,6 @@ describe("Frontend to Backend Integration Contract", () => {
     const stagingList = (await stagingRes.json()) as Array<{ lpn_code: string; location_code: string }>;
     const found = stagingList.find((item) => item.lpn_code === inboundJson.lpnCode);
     expect(found).toBeDefined();
-    expect(found?.location_code).toBe("BAY-02");
+    expect(found?.location_code).toBe(testBay);
   });
 });
