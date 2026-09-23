@@ -25,6 +25,24 @@ class ActivityEventEmitter {
     });
   }
 
+  // Broadcast mutation created event
+  public broadcastMutationCreated(payload: unknown): void {
+    this.emit({
+      event: "mutation:created",
+      data: payload,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Broadcast LPN dispatched event
+  public broadcastLpnDispatched(payload: unknown): void {
+    this.emit({
+      event: "lpn:dispatched",
+      data: payload,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   // Get active client count
   public getListenerCount(): number {
     return this.activeListeners.size;
