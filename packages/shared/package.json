@@ -8,5 +8,8 @@
   "scripts": {
     "build": "bun build ./src/index.ts --outdir ./dist",
     "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
   }
 }
